@@ -66,7 +66,7 @@ app.get('/chats/:id', (req, res) => {
 
 // POST create new chat
 app.post('/chats', (req, res) => {
-  const { name } = req.body
+  const { name, shared } = req.body
 
   if (!name) {
     return res.status(400).json({ error: 'Name is required' })
@@ -75,7 +75,8 @@ app.post('/chats', (req, res) => {
   const newChat = {
     id: getNextId(data.chats),
     index: data.chats.length,
-    name
+    name,
+    shared: shared !== undefined ? shared : false
   }
 
   data.chats.push(newChat)
@@ -92,7 +93,7 @@ app.put('/chats/:id', (req, res) => {
 
   console.log(req.body)
 
-  const { name, index } = req.body
+  const { name, index, shared } = req.body
 
   if (name !== undefined) {
     data.chats[chatIndex].name = name
@@ -100,6 +101,10 @@ app.put('/chats/:id', (req, res) => {
 
   if (index !== undefined) {
     data.chats[chatIndex].index = index
+  }
+
+  if (shared !== undefined) {
+    data.chats[chatIndex].shared = shared
   }
 
   res.json(data.chats[chatIndex])

@@ -3,22 +3,26 @@
     {
       "id": 0,
       "index": 0,
-      "name": "First chat!"
+      "name": "First chat!",
+      "shared": true
     },
     {
       "id": 1,
       "index": 1,
-      "name": "Second chat!"
+      "name": "Second chat!",
+      "shared": false
     },
     {
       "id": 2,
       "index": 2,
-      "name": "Third chat!"
+      "name": "Third chat!",
+      "shared": true
     },
     {
       "id": 3,
       "index": 3,
-      "name": "Last chat!"
+      "name": "Last chat!",
+      "shared": false
     }
   ],
   "messages": [
