@@ -17,7 +17,7 @@ const swaggerSpec = swaggerJsdoc({
       version: '1.0.0',
       description: 'REST API for managing chats and messages',
     },
-    servers: [{ url: `http://localhost:${port}` }],
+    servers: [{ url: '/' }],
     components: {
       schemas: {
         Chat: {
