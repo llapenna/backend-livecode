@@ -2,9 +2,56 @@ const express = require('express')
 const cors = require('cors')
 const fs = require('fs')
 const path = require('path')
+const swaggerJsdoc = require('swagger-jsdoc')
+const swaggerUi = require('swagger-ui-express')
 
 const app = express()
 const port = 3000
+
+// Swagger configuration
+const swaggerSpec = swaggerJsdoc({
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'LiveCode Backend API',
+      version: '1.0.0',
+      description: 'REST API for managing chats and messages',
+    },
+    servers: [{ url: `http://localhost:${port}` }],
+    components: {
+      schemas: {
+        Chat: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer', example: 1 },
+            index: { type: 'integer', example: 0 },
+            name: { type: 'string', example: 'My Chat' },
+            shared: { type: 'boolean', example: false },
+          },
+        },
+        Message: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer', example: 1 },
+            chat_id: { type: 'integer', example: 1 },
+            type: { type: 'string', enum: ['user', 'thinking', 'answer'], example: 'user' },
+            author: { type: 'string', example: 'John' },
+            content: { type: 'object', example: { text: 'Hello' } },
+          },
+        },
+        Error: {
+          type: 'object',
+          properties: {
+            error: { type: 'string' },
+          },
+        },
+      },
+    },
+  },
+  apis: [__filename],
+})
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 // CORS middleware - must be before other middleware
 app.use(cors())
@@ -50,12 +97,52 @@ function getNextId(array) {
 
 // ============== CHATS CRUD ==============
 
-// GET all chats
+/**
+ * @swagger
+ * /chats:
+ *   get:
+ *     summary: Get all chats
+ *     tags: [Chats]
+ *     responses:
+ *       200:
+ *         description: List of all chats
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Chat'
+ */
 app.get('/chats', (req, res) => {
   res.json(data.chats)
 })
 
-// GET single chat by ID
+/**
+ * @swagger
+ * /chats/{id}:
+ *   get:
+ *     summary: Get a chat by ID
+ *     tags: [Chats]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: The chat
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Chat'
+ *       404:
+ *         description: Chat not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.get('/chats/:id', (req, res) => {
   const chat = data.chats.find(c => c.id === parseInt(req.params.id))
   if (!chat) {
@@ -64,7 +151,40 @@ app.get('/chats/:id', (req, res) => {
   res.json(chat)
 })
 
-// POST create new chat
+/**
+ * @swagger
+ * /chats:
+ *   post:
+ *     summary: Create a new chat
+ *     tags: [Chats]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: My New Chat
+ *               shared:
+ *                 type: boolean
+ *                 example: false
+ *     responses:
+ *       201:
+ *         description: Chat created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Chat'
+ *       400:
+ *         description: Name is required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.post('/chats', (req, res) => {
   const { name, shared } = req.body
 
@@ -83,7 +203,44 @@ app.post('/chats', (req, res) => {
   res.status(201).json(newChat)
 })
 
-// PUT update chat
+/**
+ * @swagger
+ * /chats/{id}:
+ *   put:
+ *     summary: Update a chat
+ *     tags: [Chats]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               index:
+ *                 type: integer
+ *               shared:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Updated chat
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Chat'
+ *       404:
+ *         description: Chat not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.put('/chats/:id', (req, res) => {
   const chatIndex = data.chats.findIndex(c => c.id === parseInt(req.params.id))
 
@@ -110,7 +267,29 @@ app.put('/chats/:id', (req, res) => {
   res.json(data.chats[chatIndex])
 })
 
-// DELETE chat
+/**
+ * @swagger
+ * /chats/{id}:
+ *   delete:
+ *     summary: Delete a chat
+ *     description: Deletes the chat and all its associated messages
+ *     tags: [Chats]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       204:
+ *         description: Chat deleted
+ *       404:
+ *         description: Chat not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.delete('/chats/:id', (req, res) => {
   const chatId = parseInt(req.params.id)
   const chatIndex = data.chats.findIndex(c => c.id === chatId)
@@ -126,46 +305,164 @@ app.delete('/chats/:id', (req, res) => {
   res.status(204).send()
 })
 
-// ============== MESSAGES CRUD ==============
+// ============== MESSAGES CRUD (nested under chats) ==============
 
-// GET all messages (optionally filter by chat_id)
-app.get('/messages', (req, res) => {
-  const { chat_id } = req.query
-
-  if (chat_id) {
-    const filteredMessages = data.messages.filter(
-      m => m.chat_id === parseInt(chat_id)
-    )
-    return res.json(filteredMessages)
+/**
+ * @swagger
+ * /chats/{id}/messages:
+ *   get:
+ *     summary: Get all messages for a chat
+ *     tags: [Messages]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Chat ID
+ *     responses:
+ *       200:
+ *         description: List of messages for the chat
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Message'
+ *       404:
+ *         description: Chat not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+app.get('/chats/:id/messages', (req, res) => {
+  const chatId = parseInt(req.params.id)
+  const chatExists = data.chats.some(c => c.id === chatId)
+  if (!chatExists) {
+    return res.status(404).json({ error: 'Chat not found' })
   }
 
-  res.json(data.messages)
+  const messages = data.messages.filter(m => m.chat_id === chatId)
+  res.json(messages)
 })
 
-// GET single message by ID
-app.get('/messages/:id', (req, res) => {
-  const message = data.messages.find(m => m.id === parseInt(req.params.id))
+/**
+ * @swagger
+ * /chats/{id}/messages/{messageId}:
+ *   get:
+ *     summary: Get a single message
+ *     tags: [Messages]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Chat ID
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Message ID
+ *     responses:
+ *       200:
+ *         description: The message
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Message'
+ *       404:
+ *         description: Chat or message not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+app.get('/chats/:id/messages/:messageId', (req, res) => {
+  const chatId = parseInt(req.params.id)
+  const messageId = parseInt(req.params.messageId)
+
+  const chatExists = data.chats.some(c => c.id === chatId)
+  if (!chatExists) {
+    return res.status(404).json({ error: 'Chat not found' })
+  }
+
+  const message = data.messages.find(m => m.id === messageId && m.chat_id === chatId)
   if (!message) {
     return res.status(404).json({ error: 'Message not found' })
   }
+
   res.json(message)
 })
 
-// POST create new message
-app.post('/messages', (req, res) => {
-  const { chat_id, type, author, content } = req.body
-
-  // Validation
-  if (!chat_id || !type || !author || !content) {
-    return res.status(400).json({
-      error: 'chat_id, type, author, and content are required'
-    })
-  }
+/**
+ * @swagger
+ * /chats/{id}/messages:
+ *   post:
+ *     summary: Create a new message in a chat
+ *     tags: [Messages]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Chat ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type, author, content]
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [user, thinking, answer]
+ *                 example: user
+ *               author:
+ *                 type: string
+ *                 example: John
+ *               content:
+ *                 type: object
+ *                 example: { "text": "Hello world" }
+ *     responses:
+ *       201:
+ *         description: Message created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Message'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Chat not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+app.post('/chats/:id/messages', (req, res) => {
+  const chatId = parseInt(req.params.id)
+  const { type, author, content } = req.body
 
   // Check if chat exists
-  const chatExists = data.chats.some(c => c.id === chat_id)
+  const chatExists = data.chats.some(c => c.id === chatId)
   if (!chatExists) {
     return res.status(404).json({ error: 'Chat not found' })
+  }
+
+  // Validation
+  if (!type || !author || !content) {
+    return res.status(400).json({
+      error: 'type, author, and content are required'
+    })
   }
 
   // Validate type
@@ -178,7 +475,7 @@ app.post('/messages', (req, res) => {
 
   const newMessage = {
     id: getNextId(data.messages),
-    chat_id,
+    chat_id: chatId,
     type,
     author,
     content
@@ -188,26 +485,76 @@ app.post('/messages', (req, res) => {
   res.status(201).json(newMessage)
 })
 
-// PUT update message
-app.put('/messages/:id', (req, res) => {
+/**
+ * @swagger
+ * /chats/{id}/messages/{messageId}:
+ *   put:
+ *     summary: Update a message
+ *     tags: [Messages]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Chat ID
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Message ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [user, thinking, answer]
+ *               author:
+ *                 type: string
+ *               content:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Updated message
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Message'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Chat or message not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+app.put('/chats/:id/messages/:messageId', (req, res) => {
+  const chatId = parseInt(req.params.id)
+  const messageId = parseInt(req.params.messageId)
+
+  const chatExists = data.chats.some(c => c.id === chatId)
+  if (!chatExists) {
+    return res.status(404).json({ error: 'Chat not found' })
+  }
+
   const messageIndex = data.messages.findIndex(
-    m => m.id === parseInt(req.params.id)
+    m => m.id === messageId && m.chat_id === chatId
   )
 
   if (messageIndex === -1) {
     return res.status(404).json({ error: 'Message not found' })
   }
 
-  const { chat_id, type, author, content } = req.body
-
-  // Update only provided fields
-  if (chat_id !== undefined) {
-    const chatExists = data.chats.some(c => c.id === chat_id)
-    if (!chatExists) {
-      return res.status(404).json({ error: 'Chat not found' })
-    }
-    data.messages[messageIndex].chat_id = chat_id
-  }
+  const { type, author, content } = req.body
 
   if (type !== undefined) {
     const validTypes = ['user', 'thinking', 'answer']
@@ -230,10 +577,46 @@ app.put('/messages/:id', (req, res) => {
   res.json(data.messages[messageIndex])
 })
 
-// DELETE message
-app.delete('/messages/:id', (req, res) => {
+/**
+ * @swagger
+ * /chats/{id}/messages/{messageId}:
+ *   delete:
+ *     summary: Delete a message
+ *     tags: [Messages]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Chat ID
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Message ID
+ *     responses:
+ *       204:
+ *         description: Message deleted
+ *       404:
+ *         description: Chat or message not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+app.delete('/chats/:id/messages/:messageId', (req, res) => {
+  const chatId = parseInt(req.params.id)
+  const messageId = parseInt(req.params.messageId)
+
+  const chatExists = data.chats.some(c => c.id === chatId)
+  if (!chatExists) {
+    return res.status(404).json({ error: 'Chat not found' })
+  }
+
   const messageIndex = data.messages.findIndex(
-    m => m.id === parseInt(req.params.id)
+    m => m.id === messageId && m.chat_id === chatId
   )
 
   if (messageIndex === -1) {
@@ -246,12 +629,53 @@ app.delete('/messages/:id', (req, res) => {
 
 // ============== UTILITY ENDPOINTS ==============
 
-// GET all data
+/**
+ * @swagger
+ * /data:
+ *   get:
+ *     summary: Get all data (chats and messages)
+ *     tags: [Utility]
+ *     responses:
+ *       200:
+ *         description: All chats and messages
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 chats:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Chat'
+ *                 messages:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Message'
+ */
 app.get('/data', (req, res) => {
   res.json(data)
 })
 
-// POST reset data to default
+/**
+ * @swagger
+ * /reset:
+ *   post:
+ *     summary: Reset data to default
+ *     description: Reloads all data from default.json, discarding any changes
+ *     tags: [Utility]
+ *     responses:
+ *       200:
+ *         description: Data reset successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ */
 app.post('/reset', (req, res) => {
   loadDefaultData()
   res.json({ message: 'Data reset to default', data })
@@ -270,11 +694,11 @@ app.get('/', (req, res) => {
         'DELETE /chats/:id': 'Delete chat'
       },
       messages: {
-        'GET /messages': 'Get all messages (optional ?chat_id=X)',
-        'GET /messages/:id': 'Get message by ID',
-        'POST /messages': 'Create new message',
-        'PUT /messages/:id': 'Update message',
-        'DELETE /messages/:id': 'Delete message'
+        'GET /chats/:id/messages': 'Get all messages for a chat',
+        'GET /chats/:id/messages/:messageId': 'Get message by ID',
+        'POST /chats/:id/messages': 'Create new message in a chat',
+        'PUT /chats/:id/messages/:messageId': 'Update message',
+        'DELETE /chats/:id/messages/:messageId': 'Delete message'
       },
       utility: {
         'GET /data': 'Get all data',
